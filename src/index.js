@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const { wss } = require("./signaling/webrtc");
 const Stream = require("./models/Stream");
 const authMiddleware = require("./middleware/auth");
+require("dotenv").config();
 
 const app = express();
 const server = http.createServer(app);
