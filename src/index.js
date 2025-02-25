@@ -1,8 +1,12 @@
 const express = require("express");
 const http = require("http");
 const mongoose = require("mongoose");
+const dotenv = require("dotenv");
 const { wss } = require("./signaling/webrtc");
 const Stream = require("./models/Stream");
+
+// Load environment variables from .env file
+dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
