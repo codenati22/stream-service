@@ -1,12 +1,9 @@
 const express = require("express");
 const http = require("http");
 const mongoose = require("mongoose");
-const dotenv = require("dotenv");
 const { wss } = require("./signaling/webrtc");
 const Stream = require("./models/Stream");
-
-// Load environment variables from .env file
-dotenv.config();
+const authMiddleware = require("./middleware/auth");
 
 const app = express();
 const server = http.createServer(app);
@@ -28,10 +25,10 @@ connectDB();
 
 app.use(express.json());
 
-app.post("/start-stream", async (req, res) => {
-  const { title, ownerId } = req.body;
+app.post("/start-stream", authMiddleware, async (req, res) => {
+  const { title } = req.body;
   try {
-    const stream = new Stream({ title, owner: ownerId });
+    const stream = new Stream({ title, owner: req.user.id });
     await stream.save();
     res.json({ streamId: stream._id.toString() });
   } catch (error) {
