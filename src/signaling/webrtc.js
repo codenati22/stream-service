@@ -33,10 +33,13 @@ wss.on("connection", (ws, req) => {
     }
   });
 
-  ws.on("close", () => {
+  ws.on("close", async () => {
     const stream = streams.get(streamId);
     if (stream.owner === ws) {
       streams.delete(streamId);
+      await require("../models/Stream").findByIdAndUpdate(streamId, {
+        status: "ended",
+      });
     } else {
       stream.clients.delete(ws);
     }

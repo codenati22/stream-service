@@ -1,19 +1,56 @@
 const express = require("express");
 const http = require("http");
+const mongoose = require("mongoose");
 const { wss } = require("./signaling/webrtc");
+const Stream = require("./models/Stream");
 
 const app = express();
 const server = http.createServer(app);
+
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log("MongoDB connected");
+  } catch (error) {
+    console.error("MongoDB connection error:", error);
+    process.exit(1);
+  }
+};
+
+connectDB();
+
+app.use(express.json());
+
+app.post("/start-stream", async (req, res) => {
+  const { title, ownerId } = req.body;
+  try {
+    const stream = new Stream({ title, owner: ownerId });
+    await stream.save();
+    res.json({ streamId: stream._id.toString() });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/streams", async (req, res) => {
+  try {
+    const streams = await Stream.find({ status: "live" }).populate(
+      "owner",
+      "username"
+    );
+    res.json(streams);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 server.on("upgrade", (req, socket, head) => {
   wss.handleUpgrade(req, socket, head, (ws) => {
     wss.emit("connection", ws, req);
   });
-});
-
-app.get("/start-stream", (req, res) => {
-  const streamId = Date.now().toString();
-  res.json({ streamId });
 });
 
 const PORT = process.env.PORT || 3002;
