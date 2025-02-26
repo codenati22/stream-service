@@ -3,7 +3,6 @@ const http = require("http");
 const mongoose = require("mongoose");
 const { wss } = require("./signaling/webrtc");
 const Stream = require("./models/Stream");
-const User = require("./models/User");
 const authMiddleware = require("./middleware/auth");
 require("dotenv").config();
 
@@ -34,6 +33,7 @@ app.post("/start-stream", authMiddleware, async (req, res) => {
     await stream.save();
     res.json({ streamId: stream._id.toString() });
   } catch (error) {
+    console.error("Start stream error:", error);
     res.status(500).json({ error: error.message });
   }
 });
