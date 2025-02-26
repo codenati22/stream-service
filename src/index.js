@@ -3,6 +3,7 @@ const http = require("http");
 const mongoose = require("mongoose");
 const { wss } = require("./signaling/webrtc");
 const Stream = require("./models/Stream");
+const User = require("./models/User");
 const authMiddleware = require("./middleware/auth");
 require("dotenv").config();
 
