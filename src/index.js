@@ -33,6 +33,7 @@ app.post("/start-stream", authMiddleware, async (req, res) => {
     await stream.save();
     res.json({ streamId: stream._id.toString() });
   } catch (error) {
+    console.error("Error in /start-stream:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -43,8 +44,13 @@ app.get("/streams", async (req, res) => {
       "owner",
       "username"
     );
+    console.log("Fetched streams:", streams);
+    if (!streams || streams.length === 0) {
+      return res.json([]);
+    }
     res.json(streams);
   } catch (error) {
+    console.error("Error in /streams:", error);
     res.status(500).json({ error: error.message });
   }
 });
