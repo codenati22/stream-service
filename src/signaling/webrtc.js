@@ -12,8 +12,10 @@ wss.on("connection", (ws, req) => {
 
   if (!streams.has(streamId)) {
     streams.set(streamId, { clients: new Set(), owner: ws });
+    console.log(`New stream ${streamId} started by owner`);
   } else {
     streams.get(streamId).clients.add(ws);
+    console.log(`Viewer joined stream ${streamId}`);
   }
 
   ws.on("message", (message) => {
@@ -21,6 +23,7 @@ wss.on("connection", (ws, req) => {
     const stream = streams.get(streamId);
     if (!stream) return;
 
+    console.log(`Relaying message for ${streamId}:`, data);
     if (
       data.type === "offer" ||
       data.type === "answer" ||
@@ -31,6 +34,13 @@ wss.on("connection", (ws, req) => {
           client.send(JSON.stringify(data));
         }
       });
+      if (
+        data.type === "answer" &&
+        stream.owner !== ws &&
+        stream.owner.readyState === WebSocket.OPEN
+      ) {
+        stream.owner.send(JSON.stringify(data));
+      }
     }
   });
 
@@ -40,8 +50,10 @@ wss.on("connection", (ws, req) => {
     if (stream.owner === ws) {
       stream.clients.forEach((client) => client.close());
       streams.delete(streamId);
+      console.log(`Stream ${streamId} ended by owner`);
     } else {
       stream.clients.delete(ws);
+      console.log(`Viewer left stream ${streamId}`);
       if (
         stream.clients.size === 0 &&
         stream.owner.readyState !== WebSocket.OPEN
