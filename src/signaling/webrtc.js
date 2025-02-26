@@ -19,6 +19,7 @@ wss.on("connection", (ws, req) => {
   ws.on("message", (message) => {
     const data = JSON.parse(message);
     const stream = streams.get(streamId);
+    if (!stream) return;
 
     if (
       data.type === "offer" ||
@@ -33,15 +34,20 @@ wss.on("connection", (ws, req) => {
     }
   });
 
-  ws.on("close", async () => {
+  ws.on("close", () => {
     const stream = streams.get(streamId);
+    if (!stream) return;
     if (stream.owner === ws) {
+      stream.clients.forEach((client) => client.close());
       streams.delete(streamId);
-      await require("../models/Stream").findByIdAndUpdate(streamId, {
-        status: "ended",
-      });
     } else {
       stream.clients.delete(ws);
+      if (
+        stream.clients.size === 0 &&
+        stream.owner.readyState !== WebSocket.OPEN
+      ) {
+        streams.delete(streamId);
+      }
     }
   });
 });
