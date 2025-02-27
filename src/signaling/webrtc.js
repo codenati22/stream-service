@@ -5,64 +5,41 @@ const streams = new Map();
 
 wss.on("connection", (ws, req) => {
   const streamId = req.url.split("/")[1];
-  if (!streamId) {
-    ws.close();
-    console.log("Closed connection: No streamId provided");
-    return;
-  }
+  if (!streamId) return ws.close();
 
   if (!streams.has(streamId)) {
-    streams.set(streamId, { clients: new Set(), owner: ws, messages: [] });
-    console.log(`New stream ${streamId} started by owner`);
+    streams.set(streamId, { owner: ws, viewers: new Set() });
+    console.log(`Streamer connected to ${streamId}`);
   } else {
-    const stream = streams.get(streamId);
-    stream.clients.add(ws);
-    console.log(
-      `Viewer joined stream ${streamId}, total clients: ${stream.clients.size}`
-    );
-    // Send buffered messages to new viewer
-    stream.messages.forEach((msg) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        console.log(
-          `Sending buffered message to new viewer in ${streamId}:`,
-          msg
-        );
-        ws.send(JSON.stringify(msg));
-      }
-    });
+    streams.get(streamId).viewers.add(ws);
+    console.log(`Viewer connected to ${streamId}`);
   }
 
   ws.on("message", (message) => {
     const data = JSON.parse(message);
     const stream = streams.get(streamId);
-    if (!stream) {
-      console.log(`No stream found for ${streamId}`);
-      return;
-    }
+    if (!stream) return;
 
-    console.log(`Received message for ${streamId}:`, data);
-    if (
-      data.type === "offer" ||
-      data.type === "answer" ||
-      data.type === "candidate"
-    ) {
-      stream.messages.push(data); // Buffer message
-      console.log(
-        `Buffering message for ${streamId}, total messages: ${stream.messages.length}`
-      );
-      stream.clients.forEach((client) => {
-        if (client !== ws && client.readyState === WebSocket.OPEN) {
-          console.log(`Relaying message to client in ${streamId}:`, data);
-          client.send(JSON.stringify(data));
+    if (data.type === "offer") {
+      stream.viewers.forEach((viewer) => {
+        if (viewer.readyState === WebSocket.OPEN) {
+          viewer.send(JSON.stringify(data));
         }
       });
-      if (
-        data.type === "answer" &&
-        stream.owner !== ws &&
-        stream.owner.readyState === WebSocket.OPEN
-      ) {
-        console.log(`Relaying answer to owner in ${streamId}:`, data);
-        stream.owner.send(JSON.stringify(data));
+    } else if (
+      data.type === "answer" &&
+      stream.owner.readyState === WebSocket.OPEN
+    ) {
+      stream.owner.send(JSON.stringify(data));
+    } else if (data.type === "candidate") {
+      if (ws === stream.owner) {
+        stream.viewers.forEach((viewer) => {
+          if (viewer.readyState === WebSocket.OPEN)
+            viewer.send(JSON.stringify(data));
+        });
+      } else {
+        if (stream.owner.readyState === WebSocket.OPEN)
+          stream.owner.send(JSON.stringify(data));
       }
     }
   });
@@ -70,22 +47,13 @@ wss.on("connection", (ws, req) => {
   ws.on("close", () => {
     const stream = streams.get(streamId);
     if (!stream) return;
-    if (stream.owner === ws) {
-      stream.clients.forEach((client) => client.close());
+    if (ws === stream.owner) {
+      stream.viewers.forEach((viewer) => viewer.close());
       streams.delete(streamId);
-      console.log(`Stream ${streamId} ended by owner`);
+      console.log(`Streamer disconnected, ending ${streamId}`);
     } else {
-      stream.clients.delete(ws);
-      console.log(
-        `Viewer left stream ${streamId}, remaining clients: ${stream.clients.size}`
-      );
-      if (
-        stream.clients.size === 0 &&
-        stream.owner.readyState !== WebSocket.OPEN
-      ) {
-        streams.delete(streamId);
-        console.log(`Stream ${streamId} closed: no clients or owner`);
-      }
+      stream.viewers.delete(ws);
+      console.log(`Viewer disconnected from ${streamId}`);
     }
   });
 });
