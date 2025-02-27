@@ -51,6 +51,28 @@ app.get("/streams", async (req, res) => {
   }
 });
 
+app.post("/stop-stream", authMiddleware, async (req, res) => {
+  const { streamId } = req.body;
+  try {
+    const stream = await Stream.findById(streamId);
+    if (!stream) {
+      return res.status(404).json({ error: "Stream not found" });
+    }
+    if (stream.owner.toString() !== req.user.id) {
+      return res
+        .status(403)
+        .json({ error: "Unauthorized to stop this stream" });
+    }
+    stream.status = "ended";
+    await stream.save();
+    console.log(`Stream ${streamId} stopped by user ${req.user.id}`);
+    res.json({ message: "Stream stopped successfully" });
+  } catch (error) {
+    console.error("Stop stream error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 server.on("upgrade", (req, socket, head) => {
   wss.handleUpgrade(req, socket, head, (ws) => {
     wss.emit("connection", ws, req);
