@@ -10,7 +10,7 @@ wss.on("connection", (ws, req) => {
   const role = params.get("role");
 
   if (!streamId) {
-    console.log("No streamId, closing connection");
+    console.log("No streamId, closing");
     return ws.close();
   }
 
@@ -21,19 +21,13 @@ wss.on("connection", (ws, req) => {
       streams.set(streamId, { owner: ws, viewers: new Set() });
       console.log(`Streamer connected to ${streamId}`);
     } else {
-      console.log(
-        `No stream exists for ${streamId}, closing viewer connection`
-      );
+      console.log(`No stream exists for ${streamId}, closing viewer`);
       ws.close();
       return;
     }
   } else if (role === "viewer") {
     streams.get(streamId).viewers.add(ws);
-    console.log(
-      `Viewer connected to ${streamId}, total viewers: ${
-        streams.get(streamId).viewers.size
-      }`
-    );
+    console.log(`Viewer connected to ${streamId}`);
   } else {
     console.log(`Streamer already exists for ${streamId}, closing duplicate`);
     ws.close();
@@ -45,7 +39,7 @@ wss.on("connection", (ws, req) => {
     const stream = streams.get(streamId);
     if (!stream) return;
 
-    console.log(`Received message for ${streamId}:`, data);
+    console.log(`Received for ${streamId}:`, data);
 
     if (data.type === "offer" && ws === stream.owner) {
       stream.viewers.forEach((viewer) => {
@@ -84,9 +78,7 @@ wss.on("connection", (ws, req) => {
       console.log(`Streamer disconnected, ending ${streamId}`);
     } else {
       stream.viewers.delete(ws);
-      console.log(
-        `Viewer disconnected from ${streamId}, remaining: ${stream.viewers.size}`
-      );
+      console.log(`Viewer disconnected from ${streamId}`);
     }
   });
 });
