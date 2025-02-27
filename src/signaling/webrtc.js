@@ -1,7 +1,7 @@
 const WebSocket = require("ws");
 
 const wss = new WebSocket.Server({ noServer: true });
-const streams = new Map();
+const streams = new Map(); // streamId -> { owner: ws, viewers: Set<ws>, offer: null }
 
 wss.on("connection", (ws, req) => {
   const [path, query] = req.url.split("?");
@@ -18,7 +18,7 @@ wss.on("connection", (ws, req) => {
 
   if (!streams.has(streamId)) {
     if (role === "streamer") {
-      streams.set(streamId, { owner: ws, viewers: new Set() });
+      streams.set(streamId, { owner: ws, viewers: new Set(), offer: null });
       console.log(`Streamer connected to ${streamId}`);
     } else {
       console.log(`No stream exists for ${streamId}, closing viewer`);
@@ -28,6 +28,11 @@ wss.on("connection", (ws, req) => {
   } else if (role === "viewer") {
     streams.get(streamId).viewers.add(ws);
     console.log(`Viewer connected to ${streamId}`);
+    const stream = streams.get(streamId);
+    if (stream.offer) {
+      console.log(`Sending buffered offer to new viewer in ${streamId}`);
+      ws.send(JSON.stringify(stream.offer));
+    }
   } else {
     console.log(`Streamer already exists for ${streamId}, closing duplicate`);
     ws.close();
@@ -42,6 +47,7 @@ wss.on("connection", (ws, req) => {
     console.log(`Received for ${streamId}:`, data);
 
     if (data.type === "offer" && ws === stream.owner) {
+      stream.offer = data; // Buffer offer for late joiners
       stream.viewers.forEach((viewer) => {
         if (viewer.readyState === WebSocket.OPEN) {
           console.log(`Relaying offer to viewer in ${streamId}`);
