@@ -1,7 +1,7 @@
 const WebSocket = require("ws");
 
 const wss = new WebSocket.Server({ noServer: true });
-const streams = new Map(); // streamId -> { owner: ws, viewers: Set<ws>, offer: null }
+const streams = new Map();
 
 wss.on("connection", (ws, req) => {
   const [path, query] = req.url.split("?");
