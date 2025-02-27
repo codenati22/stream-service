@@ -37,9 +37,8 @@ wss.on("connection", (ws, req) => {
           if (viewer.readyState === WebSocket.OPEN)
             viewer.send(JSON.stringify(data));
         });
-      } else {
-        if (stream.owner.readyState === WebSocket.OPEN)
-          stream.owner.send(JSON.stringify(data));
+      } else if (stream.owner.readyState === WebSocket.OPEN) {
+        stream.owner.send(JSON.stringify(data));
       }
     }
   });
